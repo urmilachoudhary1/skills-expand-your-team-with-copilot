@@ -51,6 +51,16 @@ document.addEventListener("DOMContentLoaded", () => {
     weekend: { days: ["Saturday", "Sunday"] }, // Weekend days
   };
 
+  // Create a URL-friendly slug for activity anchors and sharing
+  function createActivitySlug(activityName) {
+    return (
+      activityName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "activity"
+    );
+  }
+
   // Initialize filters from active elements
   function initializeFilters() {
     // Initialize day filter
@@ -363,6 +373,35 @@ document.addEventListener("DOMContentLoaded", () => {
     return "academic";
   }
 
+  // Build and open a share link for the requested network
+  function shareActivity({ name, schedule, url, network }) {
+    const message = `Check out ${name} at Mergington High School! ${schedule}`;
+    const encodedUrl = encodeURIComponent(url);
+    const encodedMessage = encodeURIComponent(message);
+
+    let shareLink = "";
+
+    switch (network) {
+      case "x":
+        shareLink = `https://twitter.com/intent/tweet?text=${encodedMessage}&url=${encodedUrl}`;
+        break;
+      case "facebook":
+        shareLink = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedMessage}`;
+        break;
+      case "linkedin":
+        shareLink = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`;
+        break;
+      case "whatsapp":
+        shareLink = `https://wa.me/?text=${encodedMessage}%20${encodedUrl}`;
+        break;
+      default:
+        shareLink = url;
+        break;
+    }
+
+    window.open(shareLink, "_blank", "noopener,noreferrer");
+  }
+
   // Function to fetch activities from API with optional day and time filters
   async function fetchActivities() {
     // Show loading skeletons first
@@ -499,6 +538,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // Format the schedule using the new helper function
     const formattedSchedule = formatSchedule(details);
 
+    // Set anchor and sharing data
+    const activitySlug = createActivitySlug(name);
+    const shareUrl = `${window.location.origin}/static/index.html#${activitySlug}`;
+
     // Create activity tag
     const tagHtml = `
       <span class="activity-tag" style="background-color: ${typeInfo.color}; color: ${typeInfo.textColor}">
@@ -552,6 +595,15 @@ document.addEventListener("DOMContentLoaded", () => {
             .join("")}
         </ul>
       </div>
+      <div class="share-actions" aria-label="Share ${name}">
+        <span class="share-label">Share</span>
+        <div class="share-buttons" role="group" aria-label="Share ${name}">
+          <button class="share-button" type="button" data-network="x" aria-label="Share ${name} on X" title="Share on X">X</button>
+          <button class="share-button" type="button" data-network="facebook" aria-label="Share ${name} on Facebook" title="Share on Facebook">f</button>
+          <button class="share-button" type="button" data-network="linkedin" aria-label="Share ${name} on LinkedIn" title="Share on LinkedIn">in</button>
+          <button class="share-button" type="button" data-network="whatsapp" aria-label="Share ${name} on WhatsApp" title="Share on WhatsApp">WA</button>
+        </div>
+      </div>
       <div class="activity-card-actions">
         ${
           currentUser
@@ -571,6 +623,8 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
     `;
 
+    activityCard.id = activitySlug;
+
     // Add click handlers for delete buttons
     const deleteButtons = activityCard.querySelectorAll(".delete-participant");
     deleteButtons.forEach((button) => {
@@ -586,6 +640,19 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
     }
+
+    // Add share button handlers
+    const shareButtons = activityCard.querySelectorAll(".share-button");
+    shareButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        shareActivity({
+          name,
+          schedule: formattedSchedule,
+          url: shareUrl,
+          network: button.dataset.network,
+        });
+      });
+    });
 
     activitiesList.appendChild(activityCard);
   }
